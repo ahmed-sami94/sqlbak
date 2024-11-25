@@ -1,0 +1,12 @@
+## License
+
+This application is licensed under the **GNU General Public License** (GPL) version 3 or later.
+
+For more details, see the [LICENSE](LICENSE) file.
+
+## Credits
+
+This application was developed by **Ahmed Sami**.
+
+- Email:i@ahmed-sami.me
+

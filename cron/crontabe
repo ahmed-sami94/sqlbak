@@ -1,0 +1,3 @@
+* * * * * /usr/bin/php /var/www/html/sqlbak/check_and_run_backup.php
+0 * * * * /usr/bin/php /var/www/html/sqlbak/auto_backup.php
+0 * * * * /usr/bin/php /var/www/html/sqlbak/upload_to_ftp.php > /dev/null 2>&1

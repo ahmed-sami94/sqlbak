@@ -1,30 +1,73 @@
+# SQLBak
+
+**SQLBak** is a robust PHP-based solution for managing MySQL database backups. It provides a user-friendly interface to streamline backup, restore, and synchronization processes for databases. The application supports Docker and has been tested in production for 6 months.
+
+---
 
 ## Project Overview
+
 This project provides a web interface for managing MySQL database backups. It includes functionality for scheduling backups, performing manual backups, restoring backups, and managing users. The application also supports storing backups and managing backup history.
 ![image](https://github.com/user-attachments/assets/89ea1d87-3507-4ed2-aac1-1b0fa047b01f)
 
+---
 
 ## Features
-- **Database Management**: Add, modify, and delete databases.
-- **Backup Management**: Schedule, perform manual backups, and restore backups.
-- **Backup Scheduler**: Set intervals for automatic backups.
-- **Backup History**: View and download previous backups.
-- **User Management**: Add, modify, and delete users who can access the system.
+
+### **Dashboard**
+- Displays system status and resource usage.
+- Graphs to visualize the success rate of backups.
+
+### **Backup Management**
+- **List of Backups**:
+  - View all backups (manual and scheduled).
+  - Includes database name, backup date, comments, and actions (download, restore, or delete).
+- **Manual Backup**:
+  - Select databases for manual backup.
+  - Add comments to identify backups.
+- **Scheduled Backup**:
+  - Configure automated backups with flexible schedules.
+- Comments for each backup, improving organization and tracking.
+
+### **Database Management**
+- Add, modify, and delete databases.
+- Support for linking multiple MySQL servers (containers or on-premises) reachable by IP or domain name.
+
+### **Backup Synchronization**
+- Configure and sync with **ownCloud** for cloud storage.
+- Sync recent downloads with an FTP server.
+
+### **Restore Functionality**
+- Restore databases directly from backup files stored on the server.
+- Upload a local file from your PC to restore a database.
+
+### **User Management**
+- Add, delete, and manage users with different roles and permissions.
+
+### **Additional Enhancements**
+- **OwnCloud Integration**: Sync backups to ownCloud for easy access and storage.
+- **FTP Sync**: Automatically sync recent downloads to an FTP server.
+- **Compatibility**:
+  - The backup directory (`/var/www/html/sqlbak/backups`) can be mounted using Docker or shared via tools like NFS or Samba.
+
+---
 
 ## Requirements
+
 To run this project locally, you will need:
 - PHP 7.4 or higher
 - MySQL server
 - Apache web server
 - Docker (optional for containerization)
 
+---
+
 ## Installation
 
-1. Clone the repository:
-    ```bash
-    git clone https://github.com/ahmed-sami94/sqlbak.git
-    cd sqlbak
-    ```
+### **Step 1: Clone the Repository**
+```bash
+git clone https://github.com/ahmed-sami94/sqlbak.git
+cd sqlbak
+
 
 2. Set up the MySQL database:
     ```bash

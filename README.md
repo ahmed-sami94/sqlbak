@@ -60,6 +60,34 @@ To run this project locally, you will need:
 - Docker (optional for containerization)
 
 ---
+## Additional Details
+
+### Database Schema
+The project uses a MySQL database initialized with `sql/backup_app.sql`. Key tables include:
+- `databases`
+- `backups`
+- `schedules`
+
+### Scripts Overview
+
+#### Backup Handling
+- **`auto_backup.php`**: Handles automatic backups based on schedules.
+- **`manual_backup.php`**: Allows manual triggering of backups.
+- **`check_and_run_backup.php`**: Checks for pending backups and triggers them.
+
+#### Backup Restoration
+- **`restore_backup.php`**: Interface for restoring a selected backup.
+- **`restore_backup.sh`**: Shell script to restore a backup from a file.
+
+#### Scheduling
+- **`backup_scheduler.php`**: Set up backup schedules for periodic backups.
+- **`update_schedule.php`**: Update existing backup schedules.
+
+#### Database Management
+- **`add_database.php`**: Add new databases to be backed up.
+- **`modify_database.php`**: Modify database connection details.
+- **`delete_database.php`**: Remove a database from the backup system.
+
 
 ## Installation
 
@@ -98,38 +126,3 @@ If you prefer to containerize the application:
     ```bash
     docker-compose up --build
     ```
-
-## Additional Details
-
-### Database Schema
-The project uses a MySQL database initialized with `sql/backup_app.sql`. Key tables include:
-- `databases`
-- `backups`
-- `schedules`
-
-### Scripts Overview
-
-#### Backup Handling
-- **`auto_backup.php`**: Handles automatic backups based on schedules.
-- **`manual_backup.php`**: Allows manual triggering of backups.
-- **`check_and_run_backup.php`**: Checks for pending backups and triggers them.
-
-#### Backup Restoration
-- **`restore_backup.php`**: Interface for restoring a selected backup.
-- **`restore_backup.sh`**: Shell script to restore a backup from a file.
-
-#### Scheduling
-- **`backup_scheduler.php`**: Set up backup schedules for periodic backups.
-- **`update_schedule.php`**: Update existing backup schedules.
-
-#### Database Management
-- **`add_database.php`**: Add new databases to be backed up.
-- **`modify_database.php`**: Modify database connection details.
-- **`delete_database.php`**: Remove a database from the backup system.
-
----
-
-## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----

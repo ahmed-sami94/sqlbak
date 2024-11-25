@@ -90,17 +90,15 @@ The project uses a MySQL database initialized with `sql/backup_app.sql`. Key tab
 
 
 ## Installation
-
-### **Step 1: Clone the Repository**
 ```bash
+### **Step 1: Clone the Repository**
+
 git clone https://github.com/ahmed-sami94/sqlbak.git
 cd sqlbak
 
 
 2. Set up the MySQL database:
-    ```bash
     mysql -u root -p < sql/backup_app.sql
-    ```
 
 3. Configure the project:
    - **Database Connection**: Update the database configuration in `db.php`.
@@ -112,7 +110,7 @@ cd sqlbak
    - Make sure Apache and PHP are set up to serve the application.
    - Alternatively, use Docker to containerize the app.
 
-## Usage
+5.Usage
 
 - **Accessing the Web Interface**: Open [http://localhost/index.php](http://localhost/index.php) in your browser.
 - **Backup Operations**: Use `backup_scheduler.php` for scheduling backups or `manual_backup.php` for manual backups.
@@ -123,6 +121,4 @@ cd sqlbak
 If you prefer to containerize the application:
 1. Refer to the `Dockerfile` and `docker-compose.yml` for setup instructions.
 2. Build and run the Docker containers:
-    ```bash
     docker-compose up --build
-    ```

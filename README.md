@@ -100,4 +100,3 @@ Scripts Overview
         ◦ add_database.php: Add new databases to be backed up.
         ◦ modify_database.php: Modify database connection details.
         ◦ delete_database.php: Remove a database from the backup system.
-

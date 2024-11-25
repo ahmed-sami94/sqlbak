@@ -1,6 +1,8 @@
 
 ## Project Overview
 This project provides a web interface for managing MySQL database backups. It includes functionality for scheduling backups, performing manual backups, restoring backups, and managing users. The application also supports storing backups and managing backup history.
+![image](https://github.com/user-attachments/assets/89ea1d87-3507-4ed2-aac1-1b0fa047b01f)
+
 
 ## Features
 - **Database Management**: Add, modify, and delete databases.

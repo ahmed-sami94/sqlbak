@@ -1,0 +1,12 @@
+/backups/
+*.bak
+*.log
+*.sql.gz
+*.zip
+.env
+.env.*
+!.env.example
+restore_log.txt
+chat_*.md
+error
+

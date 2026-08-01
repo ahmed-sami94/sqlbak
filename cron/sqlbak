@@ -1,0 +1,6 @@
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+* * * * * www-data /usr/bin/php /var/www/html/sqlbak/cli/backup_worker.php >> /var/backups/sqlbak/worker.log 2>&1
+*/5 * * * * www-data /usr/bin/php /var/www/html/sqlbak/cli/destination_health_worker.php >> /var/backups/sqlbak/health.log 2>&1
+* * * * * www-data /usr/bin/php /var/www/html/sqlbak/cli/report_worker.php >> /var/backups/sqlbak/reports.log 2>&1

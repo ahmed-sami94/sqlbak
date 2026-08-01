@@ -1,0 +1,1 @@
+* * * * * /usr/bin/php /var/www/html/sqlbak/cli/backup_worker.php >> /var/backups/sqlbak/worker.log 2>&1

@@ -1,0 +1,7 @@
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+0 17,20 * * * root /usr/bin/php /var/www/html/wood/cron/send_daily_dashboard_email.php
+*/5 * * * * root /usr/bin/php /var/www/html/wood/cron/check_monitor_alerts.php
+15 * * * * root /usr/bin/php /var/www/html/wood/cron/delete_old_telegram_messages.php
+* * * * * root /usr/bin/php /var/www/html/wood/cron/telegram_ai_polling.php

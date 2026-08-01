@@ -1,4 +1,5 @@
 # SQLBak
+<img width="2957" height="1676" alt="image" src="https://github.com/user-attachments/assets/edc92fcd-3c46-4a1d-ba94-fbcc9f1aa1d4" />
 
 SQLBak is a self-hosted PHP and MariaDB application for scheduling, running, storing, and restoring database backups from one focused operations console.
 

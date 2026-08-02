@@ -34,4 +34,6 @@ Do not commit `.env` files, SQL dumps, backup archives, logs, restore histories,
 
 ## License
 
-Add the project license before public distribution.
+MIT License
+
+Copyright (c) 2026 Ahmed sami

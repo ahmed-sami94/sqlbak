@@ -7,17 +7,27 @@ function sqlbak_page_start(string $title, string $active = ''): void
     sqlbak_require_login();
     $flash = sqlbak_pull_flash();
     $user = $_SESSION['sqlbak_user'];
+    $canManageBackups = sqlbak_can_manage_backups();
+    $canManageSystem = sqlbak_can_manage_system();
     $items = [
-        'dashboard' => ['index.php', 'لوحة التحكم', 'fa-dashboard'],
-        'databases' => ['databases.php', 'قواعد البيانات', 'fa-database'],
-        'policies' => ['policies.php', 'سياسات النسخ', 'fa-clock-o'],
-        'storage' => ['storage.php', 'وجهات التخزين', 'fa-hdd-o'],
-        'backups' => ['backups.php', 'النسخ والاستعادة', 'fa-history'],
-        'reports' => ['reports.php', 'تقارير البريد', 'fa-envelope'],
-        'logs' => ['logs.php', 'الأخطاء والتتبع', 'fa-bug'],
-        'settings' => ['settings.php', 'الإعدادات', 'fa-cog'],
-        'users' => ['users.php', 'المستخدمون', 'fa-users'],
+        'dashboard' => ['index.php', 'Ø§Ù„Ø§ÙƒÙˆØ¨ Ø§Ù„ØªØ­ÙƒÙ…', 'fa-dashboard'],
     ];
+    if ($canManageBackups) {
+        $items += [
+            'databases' => ['databases.php', 'ØŒÙ…ÙˆØ§Ø¹Ø© Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª', 'fa-database'],
+            'policies' => ['policies.php', 'Ø³ÙŠØ§Ø³Ø§Ù‚ Ø§Ù„Ù†Ø³Ø®', 'fa-clock-o'],
+            'storage' => ['storage.php', 'ØˆØ¬Ù‡Ø§Øª Ø§Ù„ØªØ®Ø²ÙŠÙ†', 'fa-hdd-o'],
+            'backups' => ['backups.php', 'Ø§Ù„Ù†Ø³Ø® ÙˆØ§Ù„Ø§Ø³ØªÙŠØ§Ø·Ø©', 'fa-history'],
+            'reports' => ['reports.php', 'Ø¥Ù‚Ø¯ÙŠÙ… Ø§Ù„Ø¨Ø±ÙŠØ¯', 'fa-envelope'],
+        ];
+    }
+    if ($canManageSystem) {
+        $items += [
+            'logs' => ['logs.php', 'Ø§Ø£Ø®Ø·Ø§ÙŒ ØˆÙŠØ¯ÙŠÙ…', 'fa-bug'],
+            'settings' => ['settings.php', 'Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Ø¥', 'fa-cog'],
+            'users' => ['users.php', 'Ù…Ø´Ø¯Ø¹Ø± Ø§Ù„Ù…Ø³ÙƒÙ‡', 'fa-users'],
+        ];
+    }
     ?>
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -35,16 +45,16 @@ function sqlbak_page_start(string $title, string $active = ''): void
 </head>
 <body class="sqlbak-app" data-page="<?= sqlbak_h($active) ?>">
 <aside class="app-sidebar" id="app-sidebar">
-    <a class="brand" href="index.php"><span class="brand-mark"><i class="fa fa-shield"></i></span><span><strong>SQLBak</strong><small>نسخ احتياطي آمن</small></span></a>
-    <nav class="app-nav" aria-label="القائمة الرئيسية">
+    <a class="brand" href="index.php"><span class="brand-mark"><i class="fa fa-shield"></i></span><span><strong>SQLBak</strong><small>Ø§Ù„Ø§ØµÙ…Ù†Ø¥Øª Ø§Ù„Ø«Ù„ÙŠØ±Ø´</small></span></a>
+    <nav class="app-nav" aria-label="Ø§Ù„Ù‚ÙˆØ§Ø¦Ø§Ø± Ø§Ù„Ø¢Ø®Ù†ÙŠØ©">
         <?php foreach ($items as $key => [$url, $label, $icon]): ?>
             <a href="<?= $url ?>" class="<?= $active === $key ? 'is-active' : '' ?>"><i class="fa <?= $icon ?>"></i><span><?= $label ?></span></a>
         <?php endforeach; ?>
     </nav>
-    <div class="sidebar-foot"><span class="user-avatar"><?= sqlbak_h(substr($user['username'], 0, 1)) ?></span><span><?= sqlbak_h($user['username']) ?></span><a href="logout.php" title="تسجيل الخروج"><i class="fa fa-sign-out"></i></a></div>
+    <div class="sidebar-foot"><span class="user-avatar"><?= sqlbak_h(substr($user['username'], 0, 1)) ?></span><span><?= sqlbak_h($user['username']) ?></span><a href="logout.php" title="ØªØ¶Ø­Ù† Ù‡ØºØµ"><i class="fa fa-sign-out"></i></a></div>
 </aside>
 <main class="app-main">
-    <header class="app-topbar"><button class="menu-toggle" type="button" aria-label="فتح القائمة" data-menu-toggle><i class="fa fa-bars"></i></button><div class="topbar-title"><p class="eyebrow">إدارة النسخ الاحتياطية</p><h1><?= sqlbak_h($title) ?></h1></div><div class="topbar-actions"><span class="last-refresh" data-last-refresh></span><button class="refresh-button" type="button" title="تحديث" aria-label="تحديث" data-refresh><i class="fa fa-refresh"></i></button><a class="top-action" href="manual_backup.php"><i class="fa fa-play"></i> نسخة احتياطية الآن</a></div></header>
+    <header class="app-topbar"><button class="menu-toggle" type="button" aria-label="Ø¹Ø§Ø¦Ù„ Ø§Ù„Ù‚ÙˆØ§Ø¦Ø§Ø±" data-menu-toggle><i class="fa fa-bars"></i></button><div class="topbar-title"><p class="eyebrow">Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø®Ø§Ù¾Ø¯ Ø§Ù…Ø³Ø¯Ø§Ø¡ Ø§Ù„Ù…Ù…Ù†ÙŠÙ†</p><h1><?= sqlbak_h($title) ?></h1></div><div class="topbar-actions"><span class="last-refresh" data-last-refresh></span><button class="refresh-button" type="button" title="ØªØ­Ø°Ù" aria-label="ØªØ­Ø°Ù" data-refresh><i class="fa fa-refresh"></i></button><?php if ($canManageBackups): ?><a class="top-action" href="manual_backup.php"><i class="fa fa-play"></i> Ø¨Ø¯Ø­ Ø§Ù„Ù†Ø³Ø®Ø© Ø§Ù„Ø¬Ù‹Ø±</a><?php endif; ?></div></header>
     <section class="app-content">
         <?php if ($flash): ?><div class="notice notice-<?= sqlbak_h($flash['type']) ?>"><i class="fa fa-info-circle"></i><?= sqlbak_h($flash['message']) ?></div><?php endif; ?>
 <?php

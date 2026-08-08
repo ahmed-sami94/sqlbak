@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/lib/layout.php';
-sqlbak_require_login();
+sqlbak_require_operator();
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     sqlbak_verify_csrf();
     $databaseId = (int) ($_POST['database_id'] ?? 0);

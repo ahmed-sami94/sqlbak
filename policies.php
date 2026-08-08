@@ -5,7 +5,7 @@ require_once __DIR__ . '/lib/layout.php';
 require_once __DIR__ . '/lib/policy.php';
 require_once __DIR__ . '/lib/backup_engine.php';
 
-sqlbak_require_admin();
+sqlbak_require_operator();
 $pdo = sqlbak_db();
 
 function sqlbak_policy_from_request(): array

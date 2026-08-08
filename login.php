@@ -7,7 +7,7 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim((string) ($_POST['username'] ?? ''));
     $password = (string) ($_POST['password'] ?? '');
-    $stmt = sqlbak_db()->prepare('SELECT id, username, password, email FROM users WHERE username = ? LIMIT 1');
+    $stmt = sqlbak_db()->prepare('SELECT id, username, password, email, role, status FROM users WHERE username = ? LIMIT 1');
     $stmt->execute([$username]);
     $user = $stmt->fetch();
     $legacyHash = hash('sha256', $password);
@@ -16,9 +16,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!password_get_info($user['password'])['algo']) {
             sqlbak_db()->prepare('UPDATE users SET password = ? WHERE id = ?')->execute([password_hash($password, PASSWORD_DEFAULT), $user['id']]);
         }
-        session_regenerate_id(true);
-        $_SESSION['sqlbak_user'] = ['id' => (int) $user['id'], 'username' => $user['username'], 'role' => 'admin'];
-        header('Location: index.php'); exit;
+        if (($user['status'] ?? 'active') !== 'active') {
+            $error = 'الحساب غير نشط، تواصل مع مدير النظام.';
+            $valid = false;
+        }
+        if ($valid) {
+            session_regenerate_id(true);
+            $_SESSION['sqlbak_user'] = ['id' => (int) $user['id'], 'username' => $user['username'], 'email' => $user['email'], 'role' => (string) ($user['role'] ?? 'viewer')];
+            header('Location: index.php'); exit;
+        }
     }
     $error = 'بيانات الدخول غير صحيحة.';
 }

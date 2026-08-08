@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/layout.php';
-sqlbak_require_admin();
+sqlbak_require_operator();
 $pdo = sqlbak_db();
 
 function sqlbak_database_request(): array

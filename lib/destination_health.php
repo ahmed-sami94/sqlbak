@@ -13,9 +13,11 @@ function sqlbak_probe_destination(array $destination): array
         'local' => sqlbak_probe_local($destination, $probeName, $payload),
         'ftp' => sqlbak_probe_ftp($destination, $probeName, $payload),
         'sftp' => sqlbak_probe_sftp($destination, $probeName, $payload),
-        default => throw new SqlbakOperationException('UNSUPPORTED_DESTINATION', 'نوع وجهة التخزين غير مدعوم.'),
+        's3' => sqlbak_probe_s3($destination, $probeName, $payload),
+        'dropbox' => sqlbak_probe_dropbox($destination, $probeName, $payload),
+        default => throw new SqlbakOperationException('UNSUPPORTED_DESTINATION', 'Unsupported destination type.'),
     };
-    return ['latency_ms' => (int) round((microtime(true) - $startedAt) * 1000), 'message' => 'الاتصال والكتابة والقراءة والحذف تعمل بنجاح.'];
+    return ['latency_ms' => (int) round((microtime(true) - $startedAt) * 1000), 'message' => 'Connectivity and probe upload/download checks passed successfully.'];
 }
 
 function sqlbak_probe_local(array $destination, string $probeName, string $payload): void
@@ -24,13 +26,13 @@ function sqlbak_probe_local(array $destination, string $probeName, string $paylo
     $allowedRoot = realpath(sqlbak_backup_root()) ?: sqlbak_backup_root();
     $resolvedBase = realpath($basePath) ?: $basePath;
     if ($resolvedBase !== $allowedRoot && !str_starts_with($resolvedBase, $allowedRoot . '/')) {
-        throw new SqlbakOperationException('PATH_NOT_ALLOWED', 'المسار المحلي خارج مجلد النسخ المسموح.');
+        throw new SqlbakOperationException('PATH_NOT_ALLOWED', 'Local destination path is outside the allowed root.');
     }
     sqlbak_create_directory($basePath);
     $probePath = $basePath . '/' . $probeName;
     if (file_put_contents($probePath, $payload) === false || file_get_contents($probePath) !== $payload) {
         @unlink($probePath);
-        throw new SqlbakOperationException('VERIFY_FAILED', 'تعذر التحقق من الكتابة في المسار المحلي.');
+        throw new SqlbakOperationException('VERIFY_FAILED', 'Local probe file write/read verification failed.');
     }
     @unlink($probePath);
 }
@@ -42,7 +44,7 @@ function sqlbak_probe_ftp(array $destination, string $probeName, string $payload
     $basePath = rtrim($destination['base_path'], '/');
     if (@ftp_nlist($connection, $basePath) === false) {
         ftp_close($connection);
-        throw new SqlbakOperationException('PATH_NOT_FOUND', 'مسار FTP غير موجود أو غير قابل للقراءة.');
+        throw new SqlbakOperationException('PATH_NOT_FOUND', 'FTP path is unreachable or not found.');
     }
     $stream = fopen('php://temp', 'r+');
     fwrite($stream, $payload);
@@ -54,7 +56,7 @@ function sqlbak_probe_ftp(array $destination, string $probeName, string $payload
     @ftp_delete($connection, $remotePath);
     ftp_close($connection);
     if (!$verified) {
-        throw new SqlbakOperationException('WRITE_FAILED', 'تعذر الكتابة أو التحقق من ملف اختبار FTP.');
+        throw new SqlbakOperationException('WRITE_FAILED', 'FTP write or probe upload verification failed.');
     }
 }
 
@@ -64,15 +66,76 @@ function sqlbak_probe_sftp(array $destination, string $probeName, string $payloa
     $sftp = sqlbak_sftp_client($client);
     $basePath = rtrim($destination['base_path'], '/');
     if (!$sftp->is_dir($basePath)) {
-        throw new SqlbakOperationException('PATH_NOT_FOUND', 'مسار SFTP غير موجود: ' . $basePath);
+        throw new SqlbakOperationException('PATH_NOT_FOUND', 'SFTP path not found: ' . $basePath);
     }
     $remotePath = $basePath . '/' . $probeName;
     if (!$sftp->put($remotePath, $payload) || $sftp->get($remotePath) !== $payload) {
         $sftp->delete($remotePath);
-        throw new SqlbakOperationException('WRITE_FAILED', 'تعذر الكتابة أو القراءة من مسار SFTP.');
+        throw new SqlbakOperationException('WRITE_FAILED', 'SFTP write or read verification failed.');
     }
     if (!$sftp->delete($remotePath)) {
-        throw new SqlbakOperationException('DELETE_FAILED', 'نجح الاختبار لكن تعذر حذف ملف اختبار SFTP.');
+        throw new SqlbakOperationException('DELETE_FAILED', 'Could not remove probe file after SFTP verification.');
+    }
+}
+
+function sqlbak_probe_s3(array $destination, string $probeName, string $payload): void
+{
+    $basePath = trim((string) ($destination['base_path'] ?? ''), '/');
+    $remotePath = $basePath === '' ? $probeName : $basePath . '/' . $probeName;
+    $probeFile = tempnam(sys_get_temp_dir(), 'sqlbak-s3-probe-');
+    $targetPath = tempnam(sys_get_temp_dir(), 'sqlbak-s3-target-');
+    if ($probeFile === false || $targetPath === false) {
+        throw new RuntimeException('Unable to create temporary probe files.');
+    }
+    try {
+        if (file_put_contents($probeFile, $payload) === false) {
+            throw new RuntimeException('Unable to write local probe payload.');
+        }
+        sqlbak_s3_put_object($destination, $probeFile, $remotePath);
+        sqlbak_s3_get_object($destination, $remotePath, $targetPath);
+        $downloaded = file_get_contents($targetPath);
+        if ($downloaded !== $payload) {
+            throw new SqlbakOperationException('VERIFY_FAILED', 'S3 write/read probe verification failed.');
+        }
+    } finally {
+        @unlink($probeFile);
+        @unlink($targetPath);
+        try {
+            sqlbak_s3_delete_object($destination, $remotePath);
+        } catch (Throwable) {
+            // Ignore cleanup failures for temporary probe checks.
+        }
+    }
+}
+
+function sqlbak_probe_dropbox(array $destination, string $probeName, string $payload): void
+{
+    $basePath = trim((string) ($destination['base_path'] ?? ''), '/');
+    $remotePath = ($basePath === '' ? '' : '/' . $basePath) . '/' . $probeName;
+    $remotePath = str_replace('//', '/', $remotePath);
+    $probeFile = tempnam(sys_get_temp_dir(), 'sqlbak-dropbox-probe-');
+    $targetPath = tempnam(sys_get_temp_dir(), 'sqlbak-dropbox-target-');
+    if ($probeFile === false || $targetPath === false) {
+        throw new RuntimeException('Unable to create temporary probe files.');
+    }
+    try {
+        if (file_put_contents($probeFile, $payload) === false) {
+            throw new RuntimeException('Unable to write local probe payload.');
+        }
+        sqlbak_dropbox_copy_upload($destination, $probeFile, $remotePath);
+        sqlbak_dropbox_download($destination, $remotePath, $targetPath);
+        $downloaded = file_get_contents($targetPath);
+        if ($downloaded !== $payload) {
+            throw new SqlbakOperationException('VERIFY_FAILED', 'Dropbox write/read probe verification failed.');
+        }
+    } finally {
+        @unlink($probeFile);
+        @unlink($targetPath);
+        try {
+            sqlbak_dropbox_delete($destination, $remotePath);
+        } catch (Throwable) {
+            // Ignore cleanup failures for temporary probe checks.
+        }
     }
 }
 
@@ -81,7 +144,7 @@ function sqlbak_run_destination_health_check(array $destination): array
     $traceId = sqlbak_trace_id();
     if (!(bool) $destination['enabled']) {
         sqlbak_db()->prepare("UPDATE storage_destinations SET health_status='disabled' WHERE id=?")->execute([$destination['id']]);
-        return ['status' => 'disabled', 'message' => 'الوجهة معطلة.', 'trace_id' => $traceId];
+        return ['status' => 'disabled', 'message' => 'Destination is disabled.', 'trace_id' => $traceId];
     }
     try {
         $probe = sqlbak_probe_destination($destination);

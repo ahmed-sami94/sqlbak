@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/layout.php';
 require_once __DIR__ . '/lib/reports.php';
 
-sqlbak_require_admin();
+sqlbak_require_operator();
 $pdo = sqlbak_db();
 
 function sqlbak_report_schedule_request(): array

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/layout.php';
+sqlbak_require_operator();
 
 function sqlbak_active_destinations_by_database(PDO $pdo, array $databaseIds): array
 {

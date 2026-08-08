@@ -3,9 +3,76 @@ declare(strict_types=1);
 
 const SQLBAK_ROOT = __DIR__ . '/..';
 date_default_timezone_set((string) (getenv('TZ') ?: 'Africa/Cairo'));
+const SQLBAK_INSTALL_REDIRECT = 'install.php';
+
+function sqlbak_installed_marker(): string
+{
+    return SQLBAK_ROOT . '/.env';
+}
+
+function sqlbak_is_installed(): bool
+{
+    if (!is_file(sqlbak_installed_marker())) {
+        return false;
+    }
+    $lines = file(sqlbak_installed_marker(), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if ($lines === false) {
+        return false;
+    }
+    $values = [];
+    foreach ($lines as $line) {
+        if (!str_contains($line, '=') || str_starts_with(trim($line), '#')) {
+            continue;
+        }
+        [$name, $value] = array_map('trim', explode('=', $line, 2));
+        if ($name !== '') {
+            $values[$name] = $value;
+        }
+    }
+    return isset($values['SQLBAK_DB_HOST'], $values['SQLBAK_DB_NAME'], $values['SQLBAK_DB_USER']);
+}
+
+function sqlbak_load_dotenv(): void
+{
+    static $loaded = false;
+    if ($loaded) {
+        return;
+    }
+    $loaded = true;
+
+    $path = SQLBAK_ROOT . '/.env';
+    if (!is_file($path)) {
+        return;
+    }
+
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if ($lines === false) {
+        return;
+    }
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#')) {
+            continue;
+        }
+        if (!str_contains($line, '=')) {
+            continue;
+        }
+        [$name, $value] = array_map('trim', explode('=', $line, 2));
+        if ($name === '') {
+            continue;
+        }
+        $value = trim($value, " \t\n\r\0\x0B\"'");
+        if (!array_key_exists($name, $_ENV)) {
+            $_ENV[$name] = $value;
+            putenv("{$name}={$value}");
+        }
+    }
+}
 
 function sqlbak_env(string $name, ?string $default = null): ?string
 {
+    sqlbak_load_dotenv();
     $value = getenv($name);
     return $value === false || $value === '' ? $default : $value;
 }
@@ -16,12 +83,16 @@ function sqlbak_db(): PDO
     if ($pdo instanceof PDO) {
         return $pdo;
     }
+    if (!sqlbak_is_installed()) {
+        throw new RuntimeException('SQLBak is not installed yet. Please visit install.php first.');
+    }
 
     $host = sqlbak_env('SQLBAK_DB_HOST', 'mariadb');
+    $port = (int) sqlbak_env('SQLBAK_DB_PORT', '3306');
     $database = sqlbak_env('SQLBAK_DB_NAME', 'backup_app');
     $user = sqlbak_env('SQLBAK_DB_USER', 'backup');
     $password = sqlbak_env('SQLBAK_DB_PASS', 'backup');
-    $pdo = new PDO("mysql:host={$host};dbname={$database};charset=utf8mb4", $user, $password, [
+    $pdo = new PDO("mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4", $user, $password, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
@@ -83,8 +154,28 @@ function sqlbak_start_session(): void
     }
 }
 
+function sqlbak_current_user(): ?array
+{
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        return null;
+    }
+    return $_SESSION['sqlbak_user'] ?? null;
+}
+
+function sqlbak_user_role(): string
+{
+    return match (strtolower((string) (sqlbak_current_user()['role'] ?? 'viewer'))) {
+        'admin', 'operator', 'viewer' => strtolower((string) (sqlbak_current_user()['role'] ?? 'viewer')),
+        default => 'viewer',
+    };
+}
+
 function sqlbak_require_login(): void
 {
+    if (!sqlbak_is_installed()) {
+        header('Location: ' . SQLBAK_INSTALL_REDIRECT);
+        exit;
+    }
     sqlbak_start_session();
     if (empty($_SESSION['sqlbak_user'])) {
         header('Location: login.php');
@@ -92,13 +183,38 @@ function sqlbak_require_login(): void
     }
 }
 
-function sqlbak_require_admin(): void
+function sqlbak_require_roles(array $roles): void
 {
     sqlbak_require_login();
-    if (($_SESSION['sqlbak_user']['role'] ?? 'admin') !== 'admin') {
+    if (!in_array(sqlbak_user_role(), $roles, true)) {
         http_response_code(403);
-        exit('ليس لديك صلاحية لهذا الإجراء.');
+        exit('Ù„Ø§ ØªÙ…ÙƒÙ† Ø®Ø·Ø§Ø¡ Ø§Ù„Ø®Ø·Ø§Ø¡.');
     }
+}
+
+function sqlbak_require_admin(): void
+{
+    sqlbak_require_roles(['admin']);
+}
+
+function sqlbak_require_operator(): void
+{
+    sqlbak_require_roles(['admin', 'operator']);
+}
+
+function sqlbak_can_manage_system(): bool
+{
+    return sqlbak_user_role() === 'admin';
+}
+
+function sqlbak_can_manage_settings(): bool
+{
+    return sqlbak_user_role() === 'admin';
+}
+
+function sqlbak_can_manage_backups(): bool
+{
+    return in_array(sqlbak_user_role(), ['admin', 'operator'], true);
 }
 
 function sqlbak_csrf_token(): string
@@ -116,7 +232,7 @@ function sqlbak_verify_csrf(): void
     $token = $_POST['csrf'] ?? '';
     if (!is_string($token) || !hash_equals($_SESSION['sqlbak_csrf'] ?? '', $token)) {
         http_response_code(419);
-        exit('انتهت صلاحية الطلب. أعد المحاولة.');
+        exit('Ù†ØªÙ‡Øª ØµÙ„Ù„Ù‚ÙŠØ© Ø§Ù„Ø·Ù„ÙˆØ¬. ÙƒØ´ÙƒÙ„ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„ÙŠ.');
     }
 }
 

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/backup_engine.php';
-sqlbak_require_admin();
+sqlbak_require_operator();
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     header('Location: backups.php');
     exit;

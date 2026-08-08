@@ -240,7 +240,7 @@ function sqlbak_s3_client(array $client): array
         'bucket' => $bucket,
         'region' => $region === '' ? 'us-east-1' : $region,
         'path_style' => (bool) ($options['s3_path_style'] ?? false),
-        'session_token' => trim((string) ($options['s3_session_token'] ?? '')),
+        'session_token' => trim((string) ($secret['session_token'] ?? '')),
         'access_key' => (string) ($destination['username'] ?? ''),
         'secret_key' => trim((string) ($secret['password'] ?? '')),
     ];

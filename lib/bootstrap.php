@@ -12,24 +12,14 @@ function sqlbak_installed_marker(): string
 
 function sqlbak_is_installed(): bool
 {
-    if (!is_file(sqlbak_installed_marker())) {
-        return false;
-    }
-    $lines = file(sqlbak_installed_marker(), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    if ($lines === false) {
-        return false;
-    }
-    $values = [];
-    foreach ($lines as $line) {
-        if (!str_contains($line, '=') || str_starts_with(trim($line), '#')) {
-            continue;
-        }
-        [$name, $value] = array_map('trim', explode('=', $line, 2));
-        if ($name !== '') {
-            $values[$name] = $value;
+    sqlbak_load_dotenv();
+    foreach (['SQLBAK_DB_HOST', 'SQLBAK_DB_NAME', 'SQLBAK_DB_USER'] as $name) {
+        $value = getenv($name);
+        if ($value === false || $value === '') {
+            return false;
         }
     }
-    return isset($values['SQLBAK_DB_HOST'], $values['SQLBAK_DB_NAME'], $values['SQLBAK_DB_USER']);
+    return true;
 }
 
 function sqlbak_load_dotenv(): void
@@ -40,7 +30,7 @@ function sqlbak_load_dotenv(): void
     }
     $loaded = true;
 
-    $path = SQLBAK_ROOT . '/.env';
+    $path = sqlbak_installed_marker();
     if (!is_file($path)) {
         return;
     }

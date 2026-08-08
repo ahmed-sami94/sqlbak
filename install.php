@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/bootstrap.php';
 
-if (sqlbak_is_installed() && ($_GET['force'] ?? '') !== '1') {
+if (sqlbak_is_installed()) {
     header('Location: login.php');
     exit;
 }
@@ -101,11 +101,15 @@ function sqlbak_install_apply_sql(PDO $pdo, string $path): void
 {
     $rawSql = sqlbak_install_read_file($path);
     foreach (sqlbak_split_sql($rawSql) as $statement) {
-        if (str_starts_with(strtoupper($statement), 'BEGIN') || str_starts_with(strtoupper($statement), 'START TRANSACTION')) {
+        $normalizedStatement = strtoupper(ltrim($statement));
+        if (str_starts_with($normalizedStatement, 'USE ')) {
+            continue;
+        }
+        if (str_starts_with($normalizedStatement, 'BEGIN') || str_starts_with($normalizedStatement, 'START TRANSACTION')) {
             $pdo->beginTransaction();
             continue;
         }
-        if (str_starts_with(strtoupper($statement), 'COMMIT') || str_starts_with(strtoupper($statement), 'ROLLBACK')) {
+        if (str_starts_with($normalizedStatement, 'COMMIT') || str_starts_with($normalizedStatement, 'ROLLBACK')) {
             if ($pdo->inTransaction()) {
                 $pdo->commit();
             }
@@ -129,13 +133,14 @@ function sqlbak_install_write_env(array $values): void
     if (file_put_contents($path, $payload, LOCK_EX) === false) {
         throw new RuntimeException('Could not write .env file.');
     }
+    if (!chmod($path, 0600)) {
+        throw new RuntimeException('Could not protect .env file permissions.');
+    }
 }
 
 function sqlbak_install_generate_key(): string
 {
-    return sodium_crypto_secretbox_keygen()
-        ? base64_encode(sodium_crypto_secretbox_keygen())
-        : base64_encode(random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES));
+    return base64_encode(sodium_crypto_secretbox_keygen());
 }
 
 function sqlbak_install_apply_migrations(PDO $pdo): void

@@ -12,7 +12,7 @@ function sqlbak_storage_remote_type_allowed(string $type): bool
     return in_array($type, ['ftp', 'sftp', 's3', 'dropbox'], true);
 }
 
-function sqlbak_storage_request(): array
+function sqlbak_storage_request(int $destinationId): array
 {
     $type = (string) ($_POST['type'] ?? 'local');
     $name = trim((string) ($_POST['name'] ?? ''));
@@ -50,7 +50,7 @@ function sqlbak_storage_request(): array
     if ($type === 'local') {
         sqlbak_validate_local_destination($basePath);
     } else {
-        sqlbak_validate_remote_destination($type, $host, $s3Host);
+        sqlbak_validate_remote_destination($type, $host, $s3Host, $destinationId);
     }
 
     $options = match ($type) {
@@ -60,7 +60,6 @@ function sqlbak_storage_request(): array
             's3_bucket' => $s3Bucket,
             's3_region' => trim((string) ($_POST['s3_region'] ?? 'us-east-1')),
             's3_path_style' => isset($_POST['s3_path_style']),
-            's3_session_token' => trim((string) ($_POST['s3_session_token'] ?? '')),
         ],
         'dropbox' => [
             'dropbox_content_host' => trim((string) ($_POST['dropbox_content_host'] ?? 'https://content.dropboxapi.com/2')),
@@ -89,7 +88,7 @@ function sqlbak_storage_request(): array
     ];
 }
 
-function sqlbak_validate_remote_destination(string $type, string $host, string $s3Host): void
+function sqlbak_validate_remote_destination(string $type, string $host, string $s3Host, int $destinationId): void
 {
     if ($type === 'ftp' || $type === 'sftp') {
         $port = (int) ($_POST['port'] ?? 0);
@@ -104,7 +103,7 @@ function sqlbak_validate_remote_destination(string $type, string $host, string $
         $endpoint = $s3Host !== '' ? $s3Host : 'https://s3.amazonaws.com';
         $accessKey = trim((string) ($_POST['username'] ?? ''));
         $secret = trim((string) ($_POST['password'] ?? ''));
-        if ($endpoint === '' || $accessKey === '' || $secret === '') {
+        if ($endpoint === '' || $accessKey === '' || ($secret === '' && !sqlbak_destination_has_password($destinationId))) {
             throw new InvalidArgumentException('S3 requires endpoint, access key, and secret.');
         }
         return;
@@ -112,7 +111,7 @@ function sqlbak_validate_remote_destination(string $type, string $host, string $
 
     if ($type === 'dropbox') {
         $token = trim((string) ($_POST['password'] ?? ''));
-        if ($token === '') {
+        if ($token === '' && !sqlbak_destination_has_password($destinationId)) {
             throw new InvalidArgumentException('Dropbox access token is required.');
         }
         return;
@@ -128,31 +127,45 @@ function sqlbak_validate_local_destination(string $path): void
     }
 }
 
-function sqlbak_destination_secret(int $destinationId): ?string
+function sqlbak_destination_has_password(int $destinationId): bool
 {
-    $token = (string) ($_POST['password'] ?? '');
-    if ($token !== '') {
-        return sqlbak_encrypt(['password' => $token]);
-    }
-    $privateKey = (string) ($_POST['private_key'] ?? '');
-    if ($privateKey !== '') {
-        return sqlbak_encrypt([
-            'private_key' => $privateKey,
-            'passphrase' => (string) ($_POST['passphrase'] ?? ''),
-        ]);
-    }
     if ($destinationId < 1) {
-        return sqlbak_encrypt([]);
+        return false;
     }
     $statement = sqlbak_db()->prepare('SELECT secret_encrypted FROM storage_destinations WHERE id=?');
     $statement->execute([$destinationId]);
-    return $statement->fetchColumn() ?: null;
+    $secret = sqlbak_decrypt($statement->fetchColumn() ?: null);
+    return trim((string) ($secret['password'] ?? '')) !== '';
+}
+
+function sqlbak_destination_secret(int $destinationId, string $type): string
+{
+    $secret = [];
+    if ($destinationId > 0) {
+        $statement = sqlbak_db()->prepare('SELECT secret_encrypted FROM storage_destinations WHERE id=?');
+        $statement->execute([$destinationId]);
+        $secret = sqlbak_decrypt($statement->fetchColumn() ?: null);
+    }
+    $token = (string) ($_POST['password'] ?? '');
+    if ($token !== '') {
+        $secret['password'] = $token;
+    }
+    $sessionToken = trim((string) ($_POST['s3_session_token'] ?? ''));
+    if ($type === 's3' && $sessionToken !== '') {
+        $secret['session_token'] = $sessionToken;
+    }
+    $privateKey = (string) ($_POST['private_key'] ?? '');
+    if ($privateKey !== '') {
+        $secret['private_key'] = $privateKey;
+        $secret['passphrase'] = (string) ($_POST['passphrase'] ?? '');
+    }
+    return sqlbak_encrypt($secret);
 }
 
 function sqlbak_save_destination(PDO $pdo, int $destinationId): int
 {
-    $destination = sqlbak_storage_request();
-    $secret = sqlbak_destination_secret($destinationId);
+    $destination = sqlbak_storage_request($destinationId);
+    $secret = sqlbak_destination_secret($destinationId, $destination['type']);
     $values = array_values($destination);
     if ($destinationId > 0) {
         $statement = $pdo->prepare('UPDATE storage_destinations SET name=?,display_order=?,type=?,host=?,port=?,username=?,base_path=?,options_json=?,secret_encrypted=? WHERE id=?');
@@ -380,7 +393,7 @@ sqlbak_page_start($edit ? 'Edit destination' : 'Storage destinations', 'storage'
                 <div class="field s3-field"><label>S3 bucket</label><input name="s3_bucket" value="<?= sqlbak_h($options['s3_bucket'] ?? '') ?>" placeholder="my-bucket"></div>
                 <div class="field s3-field"><label>S3 region</label><input name="s3_region" value="<?= sqlbak_h($options['s3_region'] ?? 'us-east-1') ?>"></div>
                 <div class="field s3-field"><label>Path-style addressing</label><label><input type="checkbox" name="s3_path_style" <?= ($options['s3_path_style'] ?? false) ? 'checked' : '' ?>> Use path style</label></div>
-                <div class="field s3-field"><label>Session token (optional)</label><input name="s3_session_token" value="<?= sqlbak_h($options['s3_session_token'] ?? '') ?>" placeholder="Optional temporary token"></div>
+                <div class="field s3-field"><label>Session token (optional)</label><input name="s3_session_token" type="password" placeholder="Leave blank to keep the saved token"></div>
 
                 <div class="field dropbox-field"><label>Dropbox API host</label><input name="dropbox_api_host" value="<?= sqlbak_h($options['dropbox_api_host'] ?? 'https://api.dropboxapi.com/2') ?>"></div>
                 <div class="field dropbox-field"><label>Dropbox content host</label><input name="dropbox_content_host" value="<?= sqlbak_h($options['dropbox_content_host'] ?? 'https://content.dropboxapi.com/2') ?>"></div>

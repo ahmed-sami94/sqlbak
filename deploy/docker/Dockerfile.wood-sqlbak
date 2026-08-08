@@ -1,0 +1,5 @@
+FROM wood:latest
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends php8.3-curl \
+    && rm -rf /var/lib/apt/lists/*

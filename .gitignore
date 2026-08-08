@@ -1,5 +1,8 @@
 /backups/
+/.deploy-*/
+/.staging/
 *.bak
+*.before_*
 *.log
 *.sql.gz
 *.zip

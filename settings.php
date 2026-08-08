@@ -78,10 +78,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $traceId = sqlbak_trace_id();
             try {
                 $test = sqlbak_test_mail(trim((string) ($_POST['test_recipient'] ?? '')));
-                $pdo->prepare(\"UPDATE sqlbak_mail_settings SET last_test_status='success',last_test_message=?,last_tested_at=NOW(),last_latency_ms=? WHERE id=1\")->execute([$test['message'], $test['latency_ms']]);
+                $pdo->prepare("UPDATE sqlbak_mail_settings SET last_test_status='success',last_test_message=?,last_tested_at=NOW(),last_latency_ms=? WHERE id=1")->execute([$test['message'], $test['latency_ms']]);
                 sqlbak_flash('success', $test['message'] . ' Trace: ' . $traceId);
             } catch (Throwable $error) {
-                $pdo->prepare(\"UPDATE sqlbak_mail_settings SET last_test_status='failed',last_test_message=?,last_tested_at=NOW(),last_latency_ms=NULL WHERE id=1\")->execute([$error->getMessage()]);
+                $pdo->prepare("UPDATE sqlbak_mail_settings SET last_test_status='failed',last_test_message=?,last_tested_at=NOW(),last_latency_ms=NULL WHERE id=1")->execute([$error->getMessage()]);
                 sqlbak_record_event(['trace_id' => $traceId, 'event_type' => 'smtp_test', 'phase' => 'smtp', 'level' => 'error', 'error_code' => sqlbak_error_code($error), 'message' => $error->getMessage()]);
                 throw $error;
             }
